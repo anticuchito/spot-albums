@@ -141,6 +141,19 @@ Two related traps we hit:
 - A socket in `CLOSE_WAIT` plus near-zero CPU is the signature of exactly this
   situation.
 
+### The limit is a sliding window, not a daily quota
+
+Worth stating separately because it changes recovery strategy. After the
+23-hour block expired, a single request succeeded — and the very next burst
+tripped a fresh `429` with `Retry-After: 1190` (20 minutes). The app stays
+penalised for a while after a large burst; there is no clean daily reset to
+wait for.
+
+So don't plan around "the quota resets tomorrow." Pace requests deliberately
+instead. A forced minimum interval of 0.3–0.5 s between calls finishes a few
+thousand requests faster than running flat out and absorbing repeated
+20-minute penalties.
+
 ### The fix is to ask a different question
 
 The export **already contains the album name** for every play

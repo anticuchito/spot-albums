@@ -36,9 +36,28 @@ class Client:
     # Por encima de esto no se espera: se aborta con RateLimited.
     max_backoff_s = 120
 
-    def __init__(self, token: dict | None = None) -> None:
+    # Pausa mínima entre peticiones. El límite de Spotify es una ventana
+    # deslizante, no una cuota diaria que se reinicie: tras una ráfaga grande
+    # la app queda penalizada, y entonces incluso dos peticiones seguidas
+    # vuelven a disparar un 429. Ir despacio a propósito sale más rápido que
+    # ir rápido y comerse esperas de 20 minutos.
+    min_interval_s = 0.0
+
+    def __init__(self, token: dict | None = None,
+                 min_interval_s: float | None = None) -> None:
         self._token = token or auth.load_token()
         self._http = httpx.Client(timeout=30)
+        self._last_request = 0.0
+        if min_interval_s is not None:
+            self.min_interval_s = min_interval_s
+
+    def _throttle(self) -> None:
+        if self.min_interval_s <= 0:
+            return
+        elapsed = time.monotonic() - self._last_request
+        if elapsed < self.min_interval_s:
+            time.sleep(self.min_interval_s - elapsed)
+        self._last_request = time.monotonic()
 
     def close(self) -> None:
         self._http.close()
@@ -60,6 +79,7 @@ class Client:
         """
         url = path if path.startswith("http") else f"{API}{path}"
         for attempt in range(6):
+            self._throttle()
             resp = self._http.get(url, headers=self._headers(), params=params or None)
 
             if resp.status_code == 429:

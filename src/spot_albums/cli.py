@@ -101,11 +101,13 @@ def cmd_enrich(args, cfg: Config) -> int:
         return 0
 
     print(f"{total_groups:,} álbumes distintos en tu historial.")
+    # ~0.27 s de latencia por petición, más la pausa de auto-regulación.
+    seg = len(pending) * max(args.pace, 0.27)
     print(f"Resolviendo los {len(pending):,} más escuchados que faltan "
-          f"(≈{len(pending)/3.7/60:.0f} min).")
+          f"(≈{seg/60:.0f} min a {args.pace}s por petición).")
     print("Se puede interrumpir con Ctrl-C: lo hecho queda guardado.\n")
 
-    with Client() as client:
+    with Client(min_interval_s=args.pace) as client:
         try:
             stats = enrich.run(conn, client, budget=args.budget)
         except KeyboardInterrupt:
@@ -118,8 +120,13 @@ def cmd_enrich(args, cfg: Config) -> int:
         print(f"  {key:20s} {shown}")
 
     if stats.get("cortado_por_cuota"):
-        print(f"\nSe agotó la cuota diaria de la API. Vuelve a correr `enrich` "
-              f"en ~{stats.get('retry_after_h')} h para continuar donde quedó.")
+        h = stats.get("retry_after_h", 0)
+        cuando = f"{h*60:.0f} min" if h < 1 else f"{h:.1f} h"
+        print(f"\nSpotify está limitando la app. Su límite es una ventana "
+              f"deslizante, no una cuota que se reinicie a diario: tras una "
+              f"ráfaga grande queda penalizada un rato.")
+        print(f"Vuelve a correr `enrich` en ~{cuando} para continuar donde "
+              f"quedó, y considera subir --pace.")
         print("El reporte ya funciona con lo resuelto hasta ahora.")
         return 0
 
@@ -225,9 +232,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_ingest)
 
     p = sub.add_parser("enrich", help="resuelve álbumes vía API")
+    p.add_argument("--pace", type=float, default=0.35,
+                   help="segundos mínimos entre peticiones (por defecto 0.35). "
+                        "Súbelo si Spotify sigue devolviendo 429")
     p.add_argument("--budget", type=int, default=enrich_budget(),
-                   help="cuántos álbumes resolver, de más a menos escuchado "
-                        "(por defecto 1500; la wantlist cabe en ~650)")
+                   help=f"cuántos álbumes resolver, de más a menos escuchado "
+                        f"(por defecto {enrich_budget()}; la wantlist cabe en ~650)")
     p.set_defaults(func=cmd_enrich)
 
     p = sub.add_parser("devices", help="perfiles de reproductor disponibles")
