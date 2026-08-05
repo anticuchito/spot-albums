@@ -150,6 +150,12 @@ carries `spotify_track_uri`, this is exact — no fuzzy title search.
 
 **~57,000 requests → ~1,000.** Same information, and more accurate.
 
+This turned out to matter even more than the quota incident suggested: a
+development-mode app gets roughly **600 requests per day**, not per second. At
+one request per track the job is impossible, not merely slow. At one per album
+it fits — and ordering by listening time means a budget that runs out still
+leaves the records that matter resolved.
+
 Two supporting details:
 
 - Work is ordered by listening time descending, so an interrupted run leaves

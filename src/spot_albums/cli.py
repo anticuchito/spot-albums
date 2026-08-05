@@ -122,11 +122,16 @@ def cmd_enrich(args, cfg: Config) -> int:
     if stats.get("cortado_por_cuota"):
         h = stats.get("retry_after_h", 0)
         cuando = f"{h*60:.0f} min" if h < 1 else f"{h:.1f} h"
-        print(f"\nSpotify está limitando la app. Su límite es una ventana "
-              f"deslizante, no una cuota que se reinicie a diario: tras una "
-              f"ráfaga grande queda penalizada un rato.")
-        print(f"Vuelve a correr `enrich` en ~{cuando} para continuar donde "
-              f"quedó, y considera subir --pace.")
+        resueltos = conn.execute(
+            "SELECT COUNT(*) FROM album_groups WHERE album_id IS NOT NULL"
+        ).fetchone()[0]
+        print(f"\nSe agotó el presupuesto de peticiones. Una app en modo "
+              f"desarrollo tiene ~600 al día, contadas por petición y no por "
+              f"velocidad — subir --pace no ayuda.")
+        print(f"Llevas {resueltos:,} álbumes resueltos, y se guardan. Vuelve a "
+              f"correr `enrich` en ~{cuando} para continuar donde quedó.")
+        print("No lo dejes reintentando en bucle: cada sondeo gasta del mismo "
+              "presupuesto y puede renovar el bloqueo.")
         print("El reporte ya funciona con lo resuelto hasta ahora.")
         return 0
 
@@ -234,7 +239,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("enrich", help="resuelve álbumes vía API")
     p.add_argument("--pace", type=float, default=0.35,
                    help="segundos mínimos entre peticiones (por defecto 0.35). "
-                        "Súbelo si Spotify sigue devolviendo 429")
+                        "No evita el rate limit: el límite es ~600 peticiones "
+                        "AL DÍA, no por segundo")
     p.add_argument("--budget", type=int, default=enrich_budget(),
                    help=f"cuántos álbumes resolver, de más a menos escuchado "
                         f"(por defecto {enrich_budget()}; la wantlist cabe en ~650)")

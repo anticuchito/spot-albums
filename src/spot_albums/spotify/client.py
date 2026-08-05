@@ -36,11 +36,15 @@ class Client:
     # Por encima de esto no se espera: se aborta con RateLimited.
     max_backoff_s = 120
 
-    # Pausa mínima entre peticiones. El límite de Spotify es una ventana
-    # deslizante, no una cuota diaria que se reinicie: tras una ráfaga grande
-    # la app queda penalizada, y entonces incluso dos peticiones seguidas
-    # vuelven a disparar un 429. Ir despacio a propósito sale más rápido que
-    # ir rápido y comerse esperas de 20 minutos.
+    # Pausa mínima entre peticiones.
+    #
+    # OJO: esto NO evita el rate limit. Medido, el límite de una app en modo
+    # desarrollo es un presupuesto de ~600 peticiones AL DÍA, no una tasa por
+    # segundo: 599 peticiones a 0.5s de separación se comieron el mismo
+    # bloqueo de 24 h que una ráfaga sin pausas. Lo único que reduce el
+    # consumo es pedir menos (ver enrich.py).
+    #
+    # Se conserva por cortesía con la API y por si el límite cambia.
     min_interval_s = 0.0
 
     def __init__(self, token: dict | None = None,

@@ -141,18 +141,57 @@ Two related traps we hit:
 - A socket in `CLOSE_WAIT` plus near-zero CPU is the signature of exactly this
   situation.
 
-### The limit is a sliding window, not a daily quota
+### The real constraint is a daily request budget, ~600 for a dev-mode app
 
-Worth stating separately because it changes recovery strategy. After the
-23-hour block expired, a single request succeeded — and the very next burst
-tripped a fresh `429` with `Retry-After: 1190` (20 minutes). The app stays
-penalised for a while after a large burst; there is no clean daily reset to
-wait for.
+This took three wrong theories to pin down, so here is the evidence rather
+than a confident conclusion.
 
-So don't plan around "the quota resets tomorrow." Pace requests deliberately
-instead. A forced minimum interval of 0.3–0.5 s between calls finishes a few
-thousand requests faster than running flat out and absorbing repeated
-20-minute penalties.
+| Run | Requests made | Result |
+|---|---|---|
+| Per-track resolution | ~500 before it hung | `Retry-After: 82661` (23 h) |
+| Next day, paced at 0.5 s/req | **599** | `Retry-After: 86000` (23.9 h) |
+
+Pacing changed nothing. A deliberate half-second gap between calls produced
+the same block at the same point, because **the budget is counted in requests
+per day, not requests per second.** For a development-mode app it appears to
+sit around 600, shared across every endpoint — a full `pull` (tops, saved
+albums, playlists) spends a few hundred of them on its own.
+
+An intermediate observation that misled us: after the first 23-hour block
+expired, one request succeeded and the next burst got `Retry-After: 1190`
+(20 minutes). That looked like a sliding rate window. It was more likely the
+daily budget already nearly spent, handing out a short penalty before the
+full one.
+
+**The docs and the observations don't fully agree.** Spotify documents the
+limit as a *rolling 30-second window*, calculated **per application (client
+ID)** — not per user and not per IP. That much is confirmed. But 599 requests
+spaced half a second apart is roughly 60 per 30-second window, which should not
+produce a 24-hour block. Either development mode carries an additional volume
+cap that isn't documented, or repeated violations escalate the penalty sharply.
+
+The mechanism is unclear; the measurements aren't. Plan against what you can
+observe.
+
+Because the limit is per client ID, **changing IP or network does nothing** —
+and working around it would breach the API terms in any case. The supported
+route for a larger allowance is the **Request Extension** link on the app's
+page in the Developer Dashboard, which moves it to extended quota mode.
+
+**Practical consequences:**
+
+- Don't design around throughput. Design around **total requests**, and treat
+  every one as scarce.
+- Resolve per album rather than per track (below) — the point isn't speed, it's
+  that it fits inside the budget at all.
+- Cache permanently. The catalogue doesn't change; a resolved album never needs
+  asking again.
+- Order work by importance, so a budget that runs out mid-run leaves you with
+  the records that matter.
+- A retry loop that polls while blocked is actively harmful: each probe spends
+  from the same budget and can keep renewing the penalty.
+- For genuinely large histories, the official route is a quota extension
+  request in the developer dashboard.
 
 ### The fix is to ask a different question
 
