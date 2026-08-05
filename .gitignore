@@ -12,3 +12,7 @@ Spotify Extended Streaming History/
 *.db
 *.db-wal
 *.db-shm
+
+# Logs de corridas largas
+*.log
+nohup.out
