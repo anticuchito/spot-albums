@@ -96,7 +96,7 @@ is a few lines in `devices.py` — PRs welcome.
 
 ## Things worth knowing before you build on Spotify data
 
-Full write-up in **[FINDINGS.md](FINDINGS.md)**. The short version, because each
+Full write-up in **[FINDINGS.md](FINDINGS.md)**; the software rationale is in **[DESIGN.md](DESIGN.md)**. The short version, because each
 of these cost a real debugging session:
 
 - **`audio_features`, `recommendations` and `related-artists` are dead** since
@@ -117,7 +117,7 @@ of these cost a real debugging session:
 
 ## Status
 
-Ingestion, scoring, report and wantlist are complete and tested (39 tests).
+Ingestion, scoring, report and wantlist are complete and tested (57 tests).
 
 Writing the library to the player (`prep` / `sync`) is designed but not built —
 it makes sense to write it once you have actual files. It will have to handle

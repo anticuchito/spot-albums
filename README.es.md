@@ -1,6 +1,6 @@
 # spot-albums
 
-*[Read this in English](README.md) · [Hallazgos técnicos](FINDINGS.md)*
+*[Read this in English](README.md) · [Hallazgos técnicos](FINDINGS.md) · [Decisiones de diseño](DESIGN.md)*
 
 Convierte tu escucha real de Spotify en una **wantlist de álbumes priorizada**
 para llenar un reproductor de audio — en este caso un Snowsky Echo Mini
