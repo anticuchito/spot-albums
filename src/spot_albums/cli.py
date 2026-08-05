@@ -139,6 +139,39 @@ def cmd_enrich(args, cfg: Config) -> int:
     return 0
 
 
+def cmd_quota(args, cfg: Config) -> int:
+    """¿Puedo correr otra tanda ahora mismo?"""
+    import httpx
+
+    from .spotify import auth
+
+    conn = _conn(cfg)
+    total = conn.execute("SELECT COUNT(*) FROM album_groups").fetchone()[0]
+    hechos = conn.execute(
+        "SELECT COUNT(*) FROM album_groups WHERE album_id IS NOT NULL"
+    ).fetchone()[0]
+
+    token = auth.load_token()
+    resp = httpx.get(
+        "https://api.spotify.com/v1/tracks/4uLU6hMCjMI75M1A2tKUQC",
+        headers={"Authorization": f"Bearer {token['access_token']}"},
+        timeout=20,
+    )
+
+    print(f"Álbumes resueltos: {hechos:,} de {total:,} agrupados")
+    if resp.status_code == 200:
+        print("\nCuota: disponible ✓")
+        print(f"Puedes correr una tanda:  spot-albums enrich")
+        return 0
+
+    espera = int(resp.headers.get("Retry-After", 0))
+    cuando = f"{espera/60:.0f} min" if espera < 3600 else f"{espera/3600:.1f} h"
+    print(f"\nCuota: agotada. Disponible en ~{cuando}.")
+    print("Una app en modo desarrollo tiene ~600 peticiones al día.")
+    print("No sondees en bucle: cada intento gasta del mismo presupuesto.")
+    return 1
+
+
 def cmd_devices(args, cfg: Config) -> int:
     from .devices import DEVICES
 
@@ -245,6 +278,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"cuántos álbumes resolver, de más a menos escuchado "
                         f"(por defecto {enrich_budget()}; la wantlist cabe en ~650)")
     p.set_defaults(func=cmd_enrich)
+
+    p = sub.add_parser("quota", help="¿puedo correr otra tanda ahora?")
+    p.set_defaults(func=cmd_quota)
 
     p = sub.add_parser("devices", help="perfiles de reproductor disponibles")
     p.set_defaults(func=cmd_devices)

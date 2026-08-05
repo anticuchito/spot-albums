@@ -18,11 +18,18 @@ Así que se resuelve un solo track representativo por álbum. Como el export tra
 `spotify_track_uri`, es exacto: nada de buscar por nombre y rezar. El coste baja
 de ~57.000 peticiones a ~1.000.
 
-## Prioridad
+## Tandas, no una corrida larga
 
-Los álbumes se resuelven de más a menos escuchado. La wantlist cabe en ~650
-discos, así que resolver los primeros ~1.500 cubre de sobra cualquier cosa que
-vaya a entrar, y el resto solo añadiría ruido al fondo del ranking.
+Una app en modo desarrollo tiene un presupuesto de ~600 peticiones **al día**
+—medido, no documentado— y se cuenta por petición, no por velocidad. Así que
+esto se hace en tandas de 500 en días distintos, no de una sentada.
+
+No pasa nada porque los álbumes se resuelven de más a menos escuchado: cada
+tanda añade los siguientes más importantes, y una wantlist para 256 GB cabe en
+~650 discos. Dos o tres tandas bastan.
+
+Comprueba si puedes correr otra con `spot-albums quota`. Evita sondear en
+bucle: cada intento gasta del mismo presupuesto y puede renovar el bloqueo.
 """
 
 from __future__ import annotations
@@ -35,10 +42,17 @@ from .config import SKIP_THRESHOLD_MS
 from .ingest.api import _cache_album, _cache_track
 from .spotify.client import Client, RateLimited
 
-# Cuántos álbumes resolver por defecto. Los ~650 que caben en 256 GB de FLAC
-# quedan cubiertos de sobra; el resto da cola larga para descartar y para el
-# análisis histórico. A 3.7 req/s son ~27 min, muy lejos de la cuota diaria.
-DEFAULT_ALBUM_BUDGET = 6000
+# Cuántos álbumes resolver por corrida.
+#
+# 500 no es una cifra de rendimiento: es lo que cabe bajo el presupuesto diario
+# de una app en modo desarrollo, medido en ~600 peticiones al día. Pedir más no
+# va más rápido — se come un bloqueo de 24 h a mitad de camino y hay que volver
+# igualmente al día siguiente.
+#
+# Como los álbumes se resuelven por orden de tiempo escuchado, cada tanda añade
+# los siguientes más importantes. Tres o cuatro tandas cubren de sobra los ~650
+# que caben en una microSD de 256 GB.
+DEFAULT_ALBUM_BUDGET = 500
 
 
 def build_album_groups(conn: sqlite3.Connection) -> int:

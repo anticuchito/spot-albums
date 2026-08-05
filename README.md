@@ -71,12 +71,31 @@ uv run spot-albums auth --client-id <YOUR_CLIENT_ID>
 
 uv run spot-albums pull                        # snapshot of your account, works today
 uv run spot-albums ingest ~/Downloads/my_spotify_data.zip   # or the unzipped folder
-uv run spot-albums enrich                      # resolve albums (see below)
+uv run spot-albums enrich                      # resolve albums — one batch (see below)
 uv run spot-albums report                      # HTML + wantlist in ./out
 ```
 
-Other commands: `status` (what's in the database), `analyze` (ranking in the
-terminal), `devices` (storage profiles).
+Other commands: `quota` (can I run another batch?), `status` (what's in the
+database), `analyze` (ranking in the terminal), `devices` (storage profiles).
+
+### Resolving runs in batches, across days
+
+A development-mode app gets roughly **600 requests per day** — measured, not
+documented — counted per request, not per second. `enrich` therefore does 500
+albums per run and stops.
+
+That's fine, because albums are resolved most-listened first: each batch adds
+the next most important ones, and a wantlist for a 256 GB card only needs about
+650 albums. Two or three batches is plenty.
+
+```bash
+uv run spot-albums quota     # can I go again?
+uv run spot-albums enrich    # next 500
+```
+
+Don't poll in a loop while blocked — every probe spends from the same budget
+and can renew the block. For a bigger allowance, use the **Request Extension**
+link on your app's page in the Developer Dashboard.
 
 ---
 

@@ -173,6 +173,24 @@ por álbum.
 
 ---
 
+## Se resuelve por tandas, en días distintos
+
+Una app en modo desarrollo tiene ~600 peticiones **al día** (medido, no
+documentado), contadas por petición y no por velocidad. Por eso `enrich` hace
+500 álbumes por corrida y para.
+
+No es problema: se resuelven de más a menos escuchado, así que cada tanda añade
+los siguientes más importantes, y una wantlist para 256 GB cabe en ~650 discos.
+Dos o tres tandas bastan.
+
+```bash
+uv run spot-albums quota     # ¿puedo correr otra?
+uv run spot-albums enrich    # siguientes 500
+```
+
+No sondees en bucle mientras estés bloqueado: cada intento gasta del mismo
+presupuesto. Para más margen, usa **Request Extension** en el dashboard.
+
 ## Perfiles de dispositivo
 
 El presupuesto de almacenamiento sale de un perfil, así que sirve con cualquier
