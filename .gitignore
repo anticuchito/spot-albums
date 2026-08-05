@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+out/
+*.zip
+.DS_Store
+
+# Datos personales — nunca deben commitearse
+Spotify Extended Streaming History/
+*.db
+*.db-wal
+*.db-shm
